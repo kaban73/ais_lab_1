@@ -11,6 +11,7 @@ Y_max = 100  # Максимальное производство на пункт
 X_need = 60  # Необходимый объем потребления на город
 price_per_unit_distance = 10  # Стоимость доставки за ед. продукта на ед. расстояния
 penalty_per_excess_unit = 50  # Штраф за ед. превышения
+penalty_per_shortage_unit = 100  # Штраф за недостаток продуктов (в два раза больше, чем за превышение)
 
 POPULATION_SIZE = 100  # Размер популяции
 GENERATIONS = 200  # Количество поколений
@@ -33,10 +34,11 @@ for i in range(N):
         distance_matrix[i][j] = dist
 
 
-# --- 2. ФУНКЦИЯ ПРИСПОСОБЛЕННОСТИ ---
+# --- 2. ФУНКЦИЯ ПРИСПОСОБЛЕННОСТИ (ИСПРАВЛЕНО) ---
 def calculate_fitness(individual):
     total_cost = 0
     excess_penalty = 0
+    shortage_penalty = 0  # Добавлен штраф за недостаток
 
     # Штраф за превышение производства
     if any(individual[i, :].sum() > production_points[i]['supply'] for i in range(N)):
@@ -47,18 +49,21 @@ def calculate_fitness(individual):
         for j in range(K):
             total_cost += individual[i, j] * distance_matrix[i, j] * price_per_unit_distance
 
-    # 2. Считаем штраф за превышение потребления в городах
+    # 2. Считаем штраф за превышение и недостаток
     for j in range(K):
         total_supply_to_city = individual[:, j].sum()
         if total_supply_to_city > cities[j]['demand']:
             excess = total_supply_to_city - cities[j]['demand']
             excess_penalty += excess * penalty_per_excess_unit
+        elif total_supply_to_city < cities[j]['demand']:  # Добавлено условие для недостатка
+            shortage = cities[j]['demand'] - total_supply_to_city
+            shortage_penalty += shortage * penalty_per_shortage_unit
 
-    total_penalty = total_cost + excess_penalty
+    total_penalty = total_cost + excess_penalty + shortage_penalty
     return 1 / (1 + total_penalty)
 
 
-# --- 3. ОПЕРАТОРЫ ГЕНЕТИЧЕСКОГО АЛГОРИТМА ---
+# --- 3. ОПЕРАТОРЫ ГЕНЕТИЧЕСКОГО АЛГОРИТМА (ИСПРАВЛЕНО) ---
 
 def create_initial_population(size):
     population = []
@@ -67,14 +72,15 @@ def create_initial_population(size):
         for i in range(N):
             supply_left = production_points[i]['supply']
 
-            # Распределяем производство
-            demand_ratios = np.array([cities[j]['demand'] for j in range(K)])
-            # Добавляем маленькую константу, чтобы избежать деления на ноль
-            demand_ratios = demand_ratios / (demand_ratios.sum() + 1e-6)
+            # Распределяем производство более случайным образом
+            flows = np.random.randint(0, supply_left + 1, K)
 
-            flows = np.random.multinomial(supply_left, demand_ratios)
-            for j in range(K):
-                individual[i, j] = flows[j]
+            # Нормализация, чтобы сумма потоков не превышала supply_left
+            if flows.sum() > supply_left:
+                flows = flows * supply_left / flows.sum()
+
+            individual[i, :] = flows.astype(int)
+
         population.append(individual)
     return population
 
@@ -159,10 +165,12 @@ def brute_force_solver_simplified():
     brute_distance_matrix = np.array([[10, 20], [30, 15]])
     brute_price_per_unit_distance = 1
     brute_penalty_per_excess_unit = 5
+    brute_penalty_per_shortage_unit = 10  # Добавлен штраф за недостаток
 
     def calculate_penalty_brute(individual):
         total_cost = 0
         excess_penalty = 0
+        shortage_penalty = 0
 
         if any(individual[i, :].sum() > brute_production_points[i]['supply'] for i in range(N_brute)):
             return float('inf')
@@ -176,8 +184,11 @@ def brute_force_solver_simplified():
             if total_supply_to_city > brute_cities[j]['demand']:
                 excess = total_supply_to_city - brute_cities[j]['demand']
                 excess_penalty += excess * brute_penalty_per_excess_unit
+            elif total_supply_to_city < brute_cities[j]['demand']:
+                shortage = brute_cities[j]['demand'] - total_supply_to_city
+                shortage_penalty += shortage * brute_penalty_per_shortage_unit
 
-        return total_cost + excess_penalty
+        return total_cost + excess_penalty + shortage_penalty
 
     min_penalty = float('inf')
     best_solution = None
@@ -232,3 +243,4 @@ if __name__ == "__main__":
     plt.ylabel("Fitness")
     plt.grid(True)
     plt.show()
+
