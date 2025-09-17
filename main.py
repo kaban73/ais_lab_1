@@ -253,7 +253,7 @@ def brute_force_solver_simplified():
 # --- 6. ЗАПУСК АЛГОРИТМОВ И ВЫВОД РЕЗУЛЬТАТОВ ---
 if __name__ == "__main__":
     # 1. Запуск с мутацией "single_point"
-    print("--- Запуск генетического алгоритма (Одноточечная мутация) ---")
+    print("--- Запуск генетического алгоритма (Одноточечное скрещивание + Одноточечная мутация) ---")
     ga_start_time_sp = time.time()
     best_solution_sp, best_fit_sp, history_sp = genetic_algorithm(mutation_type='single_point')
     ga_end_time_sp = time.time()
@@ -265,7 +265,7 @@ if __name__ == "__main__":
     print("-" * 40)
 
     # 2. Запуск с мутацией "reset"
-    print("--- Запуск генетического алгоритма (Мутация сброса) ---")
+    print("--- Запуск генетического алгоритма (Двуточечное скрещивание + Мутация сброса) ---")
     ga_start_time_re = time.time()
     best_solution_re, best_fit_re, history_re = genetic_algorithm(mutation_type='reset')
     ga_end_time_re = time.time()
@@ -277,7 +277,7 @@ if __name__ == "__main__":
     print("-" * 40)
 
     # 3. Запуск с мутацией "redistribution"
-    print("--- Запуск генетического алгоритма (Мутация перераспределения) ---")
+    print("--- Запуск генетического алгоритма (Равномерное скрещивание + Мутация перераспределения) ---")
     ga_start_time_rd = time.time()
     best_solution_rd, best_fit_rd, history_rd = genetic_algorithm(mutation_type='redistribution')
     ga_end_time_rd = time.time()
@@ -301,7 +301,7 @@ if __name__ == "__main__":
     plt.plot(history_sp, label='Одноточечная')
     plt.plot(history_re, label='Сброса')
     plt.plot(history_rd, label='Перераспределения')
-    plt.title("Сравнение мутаций")
+    plt.title("Сравнение комбинация мутаций и скрещиваний")
     plt.xlabel("Поколение")
     plt.ylabel("Fitness")
     plt.legend()
