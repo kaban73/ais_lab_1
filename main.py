@@ -34,7 +34,7 @@ for i in range(N):
         distance_matrix[i][j] = dist
 
 
-# --- 2. ФУНКЦИЯ ПРИСПОСОБЛЕННОСТИ (ИСПРАВЛЕНО) ---
+# --- 2. ФУНКЦИЯ ПРИСПОСОБЛЕННОСТИ ---
 def calculate_fitness(individual):
     total_cost = 0
     excess_penalty = 0
@@ -90,7 +90,6 @@ def selection(population, num_parents):
 
 
 def single_point_crossover(parent1, parent2):
-    # Одноточечное скрещивание по строкам
     crossover_point = random.randint(1, N - 1)
     child1 = np.vstack((parent1[:crossover_point, :], parent2[crossover_point:, :]))
     child2 = np.vstack((parent2[:crossover_point, :], parent1[crossover_point:, :]))
@@ -98,7 +97,6 @@ def single_point_crossover(parent1, parent2):
 
 
 def two_point_crossover(parent1, parent2):
-    # Двухточечное скрещивание по строкам
     p1, p2 = sorted(random.sample(range(1, N - 1), 2))
     child1 = np.vstack((parent1[:p1, :], parent2[p1:p2, :], parent1[p2:, :]))
     child2 = np.vstack((parent2[:p1, :], parent1[p1:p2, :], parent2[p2:, :]))
@@ -106,7 +104,6 @@ def two_point_crossover(parent1, parent2):
 
 
 def uniform_crossover(parent1, parent2):
-    # Равномерное скрещивание по каждому гену
     child1 = np.zeros_like(parent1)
     child2 = np.zeros_like(parent2)
     for i in range(N):
@@ -120,18 +117,40 @@ def uniform_crossover(parent1, parent2):
     return child1, child2
 
 
-def mutation(individual):
+def single_point_mutation(individual):
     if random.random() < MUTATION_RATE:
         row = random.randint(0, N - 1)
         col = random.randint(0, K - 1)
-
         change = random.randint(-20, 20)
         individual[row, col] = max(0, individual[row, col] + change)
     return individual
 
 
+def reset_mutation(individual):
+    if random.random() < MUTATION_RATE:
+        row = random.randint(0, N - 1)
+        col = random.randint(0, K - 1)
+        individual[row, col] = random.randint(0, production_points[row]['supply'])
+    return individual
+
+
+def redistribution_mutation(individual):
+    if random.random() < MUTATION_RATE:
+        row = random.randint(0, N - 1)
+        supply_left = production_points[row]['supply']
+
+        individual[row, :] = 0  # Сбрасываем все потоки из этого пункта
+
+        # Распределяем их заново случайным образом
+        flows = np.random.randint(0, supply_left + 1, K)
+        if flows.sum() > supply_left:
+            flows = flows * supply_left / flows.sum()
+        individual[row, :] = flows.astype(int)
+    return individual
+
+
 # --- 4. ОСНОВНОЙ ЦИКЛ ГЕНЕТИЧЕСКОГО АЛГОРИТМА ---
-def genetic_algorithm(crossover_type='single_point'):
+def genetic_algorithm(crossover_type='single_point', mutation_type='single_point'):
     population = create_initial_population(POPULATION_SIZE)
     best_fitness_history = []
 
@@ -154,9 +173,16 @@ def genetic_algorithm(crossover_type='single_point'):
             elif crossover_type == 'uniform':
                 child1, child2 = uniform_crossover(parent1, parent2)
 
-            # Мутация
-            next_generation.append(mutation(child1))
-            next_generation.append(mutation(child2))
+            # Выбор оператора мутации
+            if mutation_type == 'single_point':
+                next_generation.append(single_point_mutation(child1))
+                next_generation.append(single_point_mutation(child2))
+            elif mutation_type == 'reset':
+                next_generation.append(reset_mutation(child1))
+                next_generation.append(reset_mutation(child2))
+            elif mutation_type == 'redistribution':
+                next_generation.append(redistribution_mutation(child1))
+                next_generation.append(redistribution_mutation(child2))
 
         population = next_generation
 
@@ -168,7 +194,6 @@ def genetic_algorithm(crossover_type='single_point'):
 
 # --- 5. ФУНКЦИЯ ПОЛНОГО ПЕРЕБОРА (УПРОЩЕННАЯ) ---
 def brute_force_solver_simplified():
-    # ... (эта функция осталась без изменений)
     print("--- Запуск полного перебора для упрощенной задачи (2x2) ---")
 
     N_brute = 2
@@ -227,10 +252,10 @@ def brute_force_solver_simplified():
 
 # --- 6. ЗАПУСК АЛГОРИТМОВ И ВЫВОД РЕЗУЛЬТАТОВ ---
 if __name__ == "__main__":
-    # 1. Запуск с одноточечным скрещиванием
-    print("--- Запуск генетического алгоритма (Одноточечное скрещивание) ---")
+    # 1. Запуск с мутацией "single_point"
+    print("--- Запуск генетического алгоритма (Одноточечная мутация) ---")
     ga_start_time_sp = time.time()
-    best_solution_sp, best_fit_sp, history_sp = genetic_algorithm(crossover_type='single_point')
+    best_solution_sp, best_fit_sp, history_sp = genetic_algorithm(mutation_type='single_point')
     ga_end_time_sp = time.time()
     print(f"Время выполнения: {ga_end_time_sp - ga_start_time_sp:.4f} сек.")
     print("Лучшее найденное решение (матрица потоков):")
@@ -239,31 +264,31 @@ if __name__ == "__main__":
     print("Общая стоимость (с учетом штрафов):", 1 / best_fit_sp - 1)
     print("-" * 40)
 
-    # 2. Запуск с двухточечным скрещиванием
-    print("--- Запуск генетического алгоритма (Двухточечное скрещивание) ---")
-    ga_start_time_tp = time.time()
-    best_solution_tp, best_fit_tp, history_tp = genetic_algorithm(crossover_type='two_point')
-    ga_end_time_tp = time.time()
-    print(f"Время выполнения: {ga_end_time_tp - ga_start_time_tp:.4f} сек.")
+    # 2. Запуск с мутацией "reset"
+    print("--- Запуск генетического алгоритма (Мутация сброса) ---")
+    ga_start_time_re = time.time()
+    best_solution_re, best_fit_re, history_re = genetic_algorithm(mutation_type='reset')
+    ga_end_time_re = time.time()
+    print(f"Время выполнения: {ga_end_time_re - ga_start_time_re:.4f} сек.")
     print("Лучшее найденное решение (матрица потоков):")
-    print(best_solution_tp)
-    print("\nЗначение функции приспособленности (Fitness):", best_fit_tp)
-    print("Общая стоимость (с учетом штрафов):", 1 / best_fit_tp - 1)
+    print(best_solution_re)
+    print("\nЗначение функции приспособленности (Fitness):", best_fit_re)
+    print("Общая стоимость (с учетом штрафов):", 1 / best_fit_re - 1)
     print("-" * 40)
 
-    # 3. Запуск с равномерным скрещиванием
-    print("--- Запуск генетического алгоритма (Равномерное скрещивание) ---")
-    ga_start_time_uf = time.time()
-    best_solution_uf, best_fit_uf, history_uf = genetic_algorithm(crossover_type='uniform')
-    ga_end_time_uf = time.time()
-    print(f"Время выполнения: {ga_end_time_uf - ga_start_time_uf:.4f} сек.")
+    # 3. Запуск с мутацией "redistribution"
+    print("--- Запуск генетического алгоритма (Мутация перераспределения) ---")
+    ga_start_time_rd = time.time()
+    best_solution_rd, best_fit_rd, history_rd = genetic_algorithm(mutation_type='redistribution')
+    ga_end_time_rd = time.time()
+    print(f"Время выполнения: {ga_end_time_rd - ga_start_time_rd:.4f} сек.")
     print("Лучшее найденное решение (матрица потоков):")
-    print(best_solution_uf)
-    print("\nЗначение функции приспособленности (Fitness):", best_fit_uf)
-    print("Общая стоимость (с учетом штрафов):", 1 / best_fit_uf - 1)
+    print(best_solution_rd)
+    print("\nЗначение функции приспособленности (Fitness):", best_fit_rd)
+    print("Общая стоимость (с учетом штрафов):", 1 / best_fit_rd - 1)
     print("-" * 40)
 
-    # 4. Запуск полного перебора
+    # Запуск полного перебора
     best_solution_brute, min_penalty_brute, brute_time = brute_force_solver_simplified()
     print("\n=== Результаты ПОЛНОГО ПЕРЕБОРА (упрощенная задача) ===")
     print(f"Время выполнения: {brute_time:.4f} сек.")
@@ -272,11 +297,11 @@ if __name__ == "__main__":
     print("Минимальная стоимость (штраф):", min_penalty_brute)
     print("-" * 40)
 
-    # Построение графика для сравнения
-    plt.plot(history_sp, label='Одноточечное')
-    plt.plot(history_tp, label='Двухточечное')
-    plt.plot(history_uf, label='Равномерное')
-    plt.title("Сравнение скрещивания")
+    # Построение графика для сравнения мутаций
+    plt.plot(history_sp, label='Одноточечная')
+    plt.plot(history_re, label='Сброса')
+    plt.plot(history_rd, label='Перераспределения')
+    plt.title("Сравнение мутаций")
     plt.xlabel("Поколение")
     plt.ylabel("Fitness")
     plt.legend()
