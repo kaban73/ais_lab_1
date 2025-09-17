@@ -1,6 +1,8 @@
 import numpy as np
 import random
 import matplotlib.pyplot as plt
+import itertools
+import time
 
 # --- 1. ИСХОДНЫЕ ДАННЫЕ И ПАРАМЕТРЫ АЛГОРИТМА ---
 N = 5  # Количество пунктов производства
@@ -143,17 +145,89 @@ def genetic_algorithm():
     return best_individual, best_fitness, best_fitness_history
 
 
-# --- 5. ЗАПУСК АЛГОРИТМА И ВЫВОД РЕЗУЛЬТАТОВ ---
+# --- 5. ФУНКЦИЯ ПОЛНОГО ПЕРЕБОРА (УПРОЩЕННАЯ) ---
+def brute_force_solver_simplified():
+    print("--- Запуск полного перебора для упрощенной задачи (2x2) ---")
+
+    # Создаем упрощенные данные для демонстрации
+    N_brute = 2
+    K_brute = 2
+    Y_max_brute = 10
+
+    brute_production_points = [{'supply': 10}, {'supply': 10}]
+    brute_cities = [{'demand': 10}, {'demand': 10}]
+    brute_distance_matrix = np.array([[10, 20], [30, 15]])
+    brute_price_per_unit_distance = 1
+    brute_penalty_per_excess_unit = 5
+
+    def calculate_penalty_brute(individual):
+        total_cost = 0
+        excess_penalty = 0
+
+        if any(individual[i, :].sum() > brute_production_points[i]['supply'] for i in range(N_brute)):
+            return float('inf')
+
+        for i in range(N_brute):
+            for j in range(K_brute):
+                total_cost += individual[i, j] * brute_distance_matrix[i, j] * brute_price_per_unit_distance
+
+        for j in range(K_brute):
+            total_supply_to_city = individual[:, j].sum()
+            if total_supply_to_city > brute_cities[j]['demand']:
+                excess = total_supply_to_city - brute_cities[j]['demand']
+                excess_penalty += excess * brute_penalty_per_excess_unit
+
+        return total_cost + excess_penalty
+
+    min_penalty = float('inf')
+    best_solution = None
+
+    start_time = time.time()
+
+    # Генерируем все возможные комбинации потоков для 2x2 матрицы
+    all_flows = range(Y_max_brute + 1)
+
+    for combo in itertools.product(all_flows, repeat=N_brute * K_brute):
+        individual = np.array(combo).reshape(N_brute, K_brute)
+        penalty = calculate_penalty_brute(individual)
+
+        if penalty < min_penalty:
+            min_penalty = penalty
+            best_solution = individual.copy()
+
+    end_time = time.time()
+
+    return best_solution, min_penalty, end_time - start_time
+
+
+# --- 6. ЗАПУСК АЛГОРИТМОВ И ВЫВОД РЕЗУЛЬТАТОВ ---
 if __name__ == "__main__":
-    best_solution, best_fit, history = genetic_algorithm()
+    # --- Запуск генетического алгоритма ---
+    ga_start_time = time.time()
+    best_solution_ga, best_fit_ga, history = genetic_algorithm()
+    ga_end_time = time.time()
 
+    print("=== Результаты ГЕНЕТИЧЕСКОГО АЛГОРИТМА ===")
+    print(f"Время выполнения: {ga_end_time - ga_start_time:.4f} сек.")
     print("Лучшее найденное решение (матрица потоков):")
-    print(best_solution)
-    print("\nЗначение функции приспособленности (Fitness):", best_fit)
-    print("Общая стоимость (с учетом штрафов):", 1 / best_fit - 1)
+    print(best_solution_ga)
+    print("\nЗначение функции приспособленности (Fitness):", best_fit_ga)
+    print("Общая стоимость (с учетом штрафов):", 1 / best_fit_ga - 1)
+    print("-" * 40)
 
+    # --- Запуск полного перебора (упрощенная версия) ---
+    best_solution_brute, min_penalty_brute, brute_time = brute_force_solver_simplified()
+
+    print("\n=== Результаты ПОЛНОГО ПЕРЕБОРА (упрощенная задача) ===")
+    print(f"Время выполнения: {brute_time:.4f} сек.")
+    print("Лучшая матрица потоков (оптимальное решение):")
+    print(best_solution_brute)
+    print("Минимальная стоимость (штраф):", min_penalty_brute)
+    print("-" * 40)
+
+    # Построение графика
     plt.plot(history)
-    plt.title("Изменение лучшей приспособленности по поколениям")
+    plt.title("Изменение лучшей приспособленности по поколениям (ГА)")
     plt.xlabel("Поколение")
     plt.ylabel("Fitness")
     plt.grid(True)
