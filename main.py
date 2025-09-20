@@ -194,15 +194,16 @@ def genetic_algorithm(crossover_type='single_point', mutation_type='single_point
 
 # --- 5. ФУНКЦИЯ ПОЛНОГО ПЕРЕБОРА (УПРОЩЕННАЯ) ---
 def brute_force_solver_simplified():
-    print("--- Запуск полного перебора для упрощенной задачи (2x2) ---")
+    # Увеличенные параметры для демонстрации экспоненциального роста времени
+    N_brute = 3
+    K_brute = 3
+    Y_max_brute = 4
 
-    N_brute = 2
-    K_brute = 2
-    Y_max_brute = 10
+    print(f"--- Запуск полного перебора для упрощенной задачи ({N_brute}x{K_brute}) ---")
 
-    brute_production_points = [{'supply': 10}, {'supply': 10}]
-    brute_cities = [{'demand': 10}, {'demand': 10}]
-    brute_distance_matrix = np.array([[10, 20], [30, 15]])
+    brute_production_points = [{'supply': Y_max_brute} for _ in range(N_brute)]
+    brute_cities = [{'demand': random.randint(Y_max_brute - 2, Y_max_brute + 2)} for _ in range(K_brute)]
+    brute_distance_matrix = np.random.randint(5, 30, size=(N_brute, K_brute))
     brute_price_per_unit_distance = 1
     brute_penalty_per_excess_unit = 5
     brute_penalty_per_shortage_unit = 10
@@ -237,6 +238,11 @@ def brute_force_solver_simplified():
 
     all_flows = range(Y_max_brute + 1)
 
+    # Расчет количества комбинаций для вывода
+    num_combinations = (Y_max_brute + 1) ** (N_brute * K_brute)
+    print(f"Количество комбинаций для проверки: {num_combinations}")
+
+    # Это займет много времени, если значения будут больше
     for combo in itertools.product(all_flows, repeat=N_brute * K_brute):
         individual = np.array(combo).reshape(N_brute, K_brute)
         penalty = calculate_penalty_brute(individual)
@@ -307,3 +313,4 @@ if __name__ == "__main__":
     plt.legend()
     plt.grid(True)
     plt.show()
+
